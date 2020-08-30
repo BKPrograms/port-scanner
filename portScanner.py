@@ -1,3 +1,4 @@
+# Created by: https://github.com/BKPrograms
 try:
     import scapy.all as sc
     import scapy.layers.inet as scli
@@ -57,12 +58,13 @@ def showMenuAndTakeScanChoice():
     print("3. Xmas Scan: In this scan, a TCP packet is sent with PSH, FIN, and URG flags, this scan is more tailored to detecting closed ports")
     print("4. FIN Scan: Quite similar to the Xmas Scan, except the packet is sent with the F flag instead and results will be identical to Xmas")
     print("5. NULL Scan: This scan sends a TCP packet with no flags")
+    print("6. TCP ACK Scan: This sends a TCP Packet with an ACK flag, tailored for identifying Filtered Ports")
     print("0. Exit Program")
-    userScanChoice = input(">> ")
-    choices = ["0", "1", "2", "3", "4", "5"]
+    userScanChoice = input("\n>> ")
+    choices = ["0", "1", "2", "3", "4", "5", "6"]
     while userScanChoice not in choices:
         print(colored("INVALID CHOICE!", "red"))
-        userScanChoice = input(">> ")
+        userScanChoice = input("\n>> ")
 
     return userScanChoice
 
@@ -210,6 +212,21 @@ class PortScanner():
                         self.dynamicPrint(port, "Filtered")
 
 
+    def tcpACKScan(self):
+        for port in self.ports:
+            self.checkIfTargetOnline()
+            localSourcePort = random.randint(1,10000) # Use random source port and not keep one port const. open
+            ackFlagPKT = sc.sr1(sc.IP(dst=self.targIp) / sc.TCP(dport=port,sport = localSourcePort ,flags="A"),verbose = False , timeout=1)
+            if not ackFlagPKT:
+                self.dynamicPrint(port, "Filtered")
+            elif ackFlagPKT.haslayer(sc.TCP):
+                if ackFlagPKT[sc.TCP].flags == 0x4:
+                    continue
+            elif ackFlagPKT.haslayer(sc.ICMP):
+                if ackFlagPKT[sc.ICMP].type == 3 and  ackFlagPKT[sc.ICMP].code == 3 in [1, 2, 3, 9, 10, 13]:
+                    self.dynamicPrint(port, "Filtered")
+
+
 specifiedTargetIP = takeOptions()  # Takes in user's option and stores in a variable
 clearTerminal()  # Clearing Terminal
 printIntroMessage()  # Printing Intro Message
@@ -223,29 +240,27 @@ else: # If they don't want to exit then execute whichever scan type they have in
     print("PLEASE DO NOT EXIT THE SCAN EARLY, WAIT UNTIL THE SCAN COMPLETION MESSAGE HAS APPEARED")
     if scanChoice == "1": # If they input 1, then execute TCP Connect scan
         print(f"\n[{colored('+', 'green')}] Initiating TCP Connect Scan on {scanner.targIp}...\n") # Notify beginning
-     #   print("\nResults of TCP Connect Scan:") # Header
         scanner.printResultsTable() # Print general table header
         scanner.tcpConnectScan() # Begin TCP connect Scan
     elif scanChoice == "2": # If they input 2, then they wanted to execute a stealth TCP scan
         print(f"\n[{colored('+', 'green')}] Initiating TCP Stealth Scan on {scanner.targIp}...\n") # Notify beginning
-       # print("\nResults of TCP Stealth Scan:") # Header
         scanner.printResultsTable() # Print general table header
         scanner.tcpStealthScan() # Begin TCP stealth Scan
     elif scanChoice == "3": # If they input 3, then they want to use the XMAS scan
         print(f"\n[{colored('+', 'green')}] Initiating Xmas Scan on {scanner.targIp}...\n") # Notify beginning
-      #  print("\nResults of Xmas Scan:") # Header
         scanner.printResultsTable() # Print general table header
         scanner.xmasScan() # Begin Xmas Scan
     elif scanChoice == "4":
         print(f"\n[{colored('+', 'green')}] Initiating FIN Scan on {scanner.targIp}...\n") # Notify beginning
-      #  print("\nResults of FIN Scan:") # Header
         scanner.printResultsTable() # Print general table header
         scanner.finScan() # Begin FIN Scan
     elif scanChoice == "5":
         print(f"\n[{colored('+', 'green')}] Initiating NULL Scan on {scanner.targIp}...\n") # Notify beginning
-       # print("\nResults of NULL Scan:") # Header
         scanner.printResultsTable() # Print general table header
         scanner.nullScan() # Begin NULL Scan
-
+    elif scanChoice == "6":
+        print(f"\n[{colored('+', 'green')}] Initiating TCP ACK Scan on {scanner.targIp}...\n")  # Notify beginning
+        scanner.printResultsTable()  # Print general table header
+        scanner.tcpACKScan()  # Begin TCP ACK Scan
 
     print(f"[{colored('+', 'green')}] Scan Complete!")
